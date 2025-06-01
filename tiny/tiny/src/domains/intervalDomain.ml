@@ -50,7 +50,7 @@ let join x y = match x, y with
 
 let meet x y = match x, y with
   |Bot, i | i, Bot -> Bot
-  | Itv(n1, n2), Itv(n3, n4) -> Itv(max_pinf n1 n3, min_minf n2 n4) (*TODO FINIR*)
+  | Itv(n1, n2), Itv(n3, n4) -> Itv(max_pinf n1 n3, min_minf n2 n4) 
 
 let widening x y = 
   match x,y with 
@@ -93,7 +93,7 @@ let sem_minus x y =
 
 
 type bmul = PlusInf | MoinsInf | Int of int
-type tmul = Bot | It of bmul * bmul
+type tmul = Bottom | It of bmul * bmul
 
 let rec mulb x y = 
   match x,y with
@@ -105,11 +105,54 @@ let rec mulb x y =
   |_, _-> (mulb y x)
 
 
+  let itv_to_mul x = 
+    match x with
+    |Itv(None, None) -> It(MoinsInf, PlusInf)
+    |Itv(None, Some n) -> It(MoinsInf, Int(n))
+    |Itv(Some n, None) -> It(Int(n), PlusInf)
+    |Itv(Some n1, Some n2) -> It(Int(n1), Int(n2))
+    |Bot -> Bottom
+
+  let mul_to_itv x =
+    match x with 
+    |Bottom -> Bot
+    |It(MoinsInf, PlusInf) -> Itv(None, None)
+    |It(MoinsInf, Int(n)) -> Itv(None, Some n)
+    |It(Int(n), PlusInf) -> Itv(Some n, None)
+    |It(Int(a), Int(b)) -> Itv(Some a, Some b)
+    |_ -> failwith "tg"
+
+  let max_mul x y = 
+    match x, y with
+    |PlusInf, _ | _, PlusInf -> PlusInf
+    |MoinsInf, a | a, MoinsInf -> a
+    |Int(a), Int(b) -> if a > b then Int(a) else Int(b)
+
+
+  let min_mul x y = 
+    match x, y with
+    |PlusInf, a | a, PlusInf -> a
+    |MoinsInf, _ | _, MoinsInf -> MoinsInf
+    |Int(a), Int(b) -> if a < b then Int(a) else Int(b)
+
+
+let sem_times x y = 
+  let newx = itv_to_mul x in
+  let newy = itv_to_mul y in
+
+  match newx, newy with 
+  |Bottom , _ | _, Bottom -> Bot
+  |It(a,b), It(c,d) -> let borneinf = min_mul (min_mul (mulb a c) (mulb a d)) (min_mul (mulb b c) (mulb b d)) in
+                       let bornemax = max_mul (max_mul (mulb a c) (mulb a d)) (max_mul (mulb b c) (mulb b d)) in
+
+                       mul_to_itv (It(borneinf, bornemax))
+
+                       
 
 
 
+  
 
-let sem_times x y = top
   
 
 let sem_div x y = top
